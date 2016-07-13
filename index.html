@@ -1,0 +1,84 @@
+<!doctype html>
+<meta charset=utf-8>
+<style>
+.log { border-top: 1px solid black; }
+.logLine { border-bottom: 1px solid black; }
+</style>
+<body>
+<script>
+var Index = 0;
+var Comm = {};
+var LogElem = null;
+
+function log(msg) {
+	if (!LogElem) {
+		LogElem = document.createElement("div");
+		LogElem.className = "log";
+		document.body.appendChild(LogElem);
+	}
+	var line = document.createElement("div");
+	line.textContent = msg;
+	line.className = "logLine";
+	LogElem.appendChild(line);
+}
+
+function Site(ind, name, origin, win) {
+	this.index = ind;
+	this.name = name;
+	this.origin = origin;
+	this.win = win;
+	this._awaitingInit = false;
+}
+
+Site.prototype.init = function() {
+	this._awaitingInit = true;
+	this.win.postMessage("init", this.origin);
+	setTimeout(() => {
+		if (this._awaitingInit) {
+			delete Comm[this.index];
+			log(this.name + " is dead");
+		}
+		else {
+			log(this.name + " is alive");
+		}
+	}, 2000);
+};
+
+Site.prototype.handle = function(data) {
+	if (data === "init") {
+		this._awaitingInit = false;
+	}
+};
+
+function createButton(name, url) {
+	var el = document.createElement("input");
+	el.value = name;
+	el.type = "button";
+	el.onclick = function() {
+		var ind = Index++;
+		var origin = /^https:\/\/[^\/]*/.exec(url)[0];
+		var win = window.open(url);
+		var c = new Site(ind, name, origin, win);
+		Comm[ind] = c;
+		setTimeout(() => {
+			c.init();
+		}, 10000);
+	};
+	document.body.appendChild(el);
+}
+
+addEventListener("message", function(ev) {
+	var origin = ev.origin || ev.originalEvent.origin;
+	for (var a in Comm) {
+		var c = Comm[a]
+		if (origin === c.origin) {
+			c.handle(ev.data);
+			break;
+		}
+	}
+});
+
+createButton("Facebook", "https://www.messenger.com/");
+createButton("Hangouts", "https://hangouts.google.com/");
+createButton("Skype", "https://web.skype.com/en/");
+</script>
